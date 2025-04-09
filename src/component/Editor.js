@@ -15,7 +15,7 @@ import pointed from '../assets/imgs/pointed.png';
 import upward from '../assets/imgs/upward.png';
 import valley from '../assets/imgs/valley.png';
 
-const imgArr = [normal, curve, arch, bridge, valley, pinch, bulge, perspective, pointed, downward, upward, cone];
+const imgArr = [normal, bridge, valley, curve, arch, pinch, bulge, perspective, pointed, downward, upward, cone];
 
 const Editor = () => {
     const canvasRef = useRef(null);
@@ -24,9 +24,16 @@ const Editor = () => {
     const [selectedButton, setSelectedButton] = useState(null);
     const [svgCode, setSvgCode] = useState('');
 
+    const [bridgeParams, setBridgeParams] = useState({
+        curve: 110,
+        offsetY: 4,
+        textHeight: 64,
+        bottom: 200,
+    });
+
     useEffect(() => {
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
-            height: 1500,
+            height: 1000,
             backgroundColor: '#f3f3f3',
         });
 
@@ -35,8 +42,6 @@ const Editor = () => {
             fabricCanvas.setWidth(containerWidth);
             fabricCanvas.renderAll();
         };
-
-
 
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
@@ -49,9 +54,7 @@ const Editor = () => {
         };
 
         loadFonts();
-
         const loadCurvedTextPlugin = async () => {
-            // Wait for fabric to be available
             if (fabric && fabric.util) {
                 try {
                     const curvedTextModule = await import('../assets/plugins/fabric.curvedText.js');
@@ -61,10 +64,7 @@ const Editor = () => {
                 }
             }
         };
-
-        // Load CurvedText plugin after fabric is initialized
-        loadCurvedTextPlugin();
-
+        // loadCurvedTextPlugin();
         return () => {
             window.removeEventListener('resize', resizeCanvas);
             fabricCanvas.dispose();
@@ -106,59 +106,6 @@ const Editor = () => {
         }
     };
 
-    const addText = () => {
-        const text = new fabric.IText('Warp Me!', {
-            left: 100,
-            top: 100,
-            fontSize: 40,
-            fill: 'black',
-        });
-        canvas.add(text);
-        canvas.setActiveObject(text);
-        canvas.renderAll();
-    };
-
-    const applyArcText = () => {
-        const text = canvas.getActiveObject();
-        if (text && text.type === "i-text") {
-            text.set({
-                angle: 20,
-            });
-            canvas.renderAll();
-        }
-    };
-
-    const applyWaveText = () => {
-        const text = canvas.getActiveObject();
-        if (text && text.isType("i-text")) {
-            let textValue = text.text;
-            let waveText = textValue.split(" ").join("~");
-            text.set({ text: waveText });
-            canvas.renderAll();
-        }
-    };
-
-    const applyPerspectiveText = () => {
-        const text = canvas.getActiveObject();
-        if (text && text.isType("i-text")) {
-            text.set({
-                skewX: 30,
-            });
-            canvas.renderAll();
-        }
-    };
-
-    const clearCanvas = () => {
-        canvas.clear();
-        canvas.backgroundColor = '#f3f3f3';
-        canvas.renderAll();
-    };
-
-    const exportSVG = () => {
-        const svgData = canvas.toSVG();
-        const blob = new Blob([svgData], { type: 'image/svg+xml' });
-        saveAs(blob, 'text-warp.svg');
-    };
 
     const applyCurveEffect = () => {
         const activeObject = canvas.getActiveObject();
@@ -191,17 +138,99 @@ const Editor = () => {
         }
     };
 
-    const handleImageButtonClick = (index) => {
-        setSelectedButton(index);
+    const applyBridgeEffect = (bridgeObject) => {
+        if (!bridgeObject || bridgeObject.type !== 'i-text') return;
 
-        if (imgArr[index] === curve) {
-            const activeObject = canvas.getActiveObject();
-            if (activeObject && activeObject.type === 'i-text') {
-                applyCurveEffect(activeObject);
-            } else {
-                alert('Please select an editable text to apply curve effect.');
-                return;
-            }
+        const { text, left, top, fill, fontSize, fontFamily, angle, scaleX, scaleY } = bridgeObject;
+
+        const textWidth = bridgeObject.width * (scaleX || 1);
+        const textHeight = bridgeObject.height * (scaleY || 1);
+        const canvasWidth = Math.ceil(textWidth + 100);
+        const canvasHeight = Math.ceil(textHeight * 2);
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasWidth;
+        tempCanvas.height = canvasHeight;
+        console.log(canvasWidth, canvasHeight, tempCanvas);
+        const ctx = tempCanvas.getContext('2d');
+
+        const os = document.createElement('canvas');
+        os.width = textWidth;
+        os.height = textHeight;
+        const octx = os.getContext('2d');
+        octx.font = `${fontSize}px "${fontFamily}"`;
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.clearRect(0, 0, 400, 300);
+        octx.fillText(text.toUpperCase(), canvasWidth / 2, 0);
+        
+        const { curve, offsetY, textHeight: sliceTextHeight, bottom } = bridgeParams;
+        const w = canvasWidth;
+        const h = canvasHeight;
+        const angleSteps = 180 / w;
+
+        let dltY = curve / sliceTextHeight;
+        let y = 0;
+        let i = w; // important: we start from right edge and go left
+        const sliceWidth = 1;
+
+        while (i--) {
+            y = bottom - curve * Math.sin(i * angleSteps * Math.PI / 180);
+            ctx.drawImage(
+                os,
+                i, 0, sliceWidth, sliceTextHeight, // source
+                i, h / 2 - (offsetY / sliceTextHeight) * y, sliceWidth, y // destination
+            );
+        }
+        const expectedHeight = curve + sliceTextHeight;
+
+        const dataURL = tempCanvas.toDataURL();
+        console.log(tempCanvas);
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+                scaleX: textWidth / canvasWidth,
+                scaleY: textHeight / canvasHeight,
+            });
+
+            canvas.remove(bridgeObject);
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+
+
+    const handleImageButtonClick = (index) => {
+        const activeObject = canvas.getActiveObject();
+        setSelectedButton(index);
+        switch (imgArr[index]) {
+            case bridge:
+                if (activeObject && activeObject.type === 'i-text') {
+                    applyBridgeEffect(activeObject);
+                } else {
+                    alert('Please select an editable text to apply curve effect.');
+                    return;
+                }
+                break;
+            case valley:
+                break;
+            case curve:
+                if (activeObject && activeObject.type === 'i-text') {
+                    applyCurveEffect(activeObject);
+                } else {
+                    alert('Please select an editable text to apply curve effect.');
+                    return;
+                }
+                break;
         }
     };
 
@@ -226,29 +255,67 @@ const Editor = () => {
                     </button>
                 </div>
                 <div className='w-full flex justify-between'>
-                    <div className="w-4/12 max-w-[430px] flex justify-between flex-wrap h-[300px]">
-                        {imgArr.map((imgSrc, index) => (
-                            <div
-                                key={index}
-                                onClick={() => handleImageButtonClick(index)}
-                                style={{
-                                    width: '140px',
-                                    height: '70px',
-                                    border: `1px solid ${selectedButton === index ? 'black' : '#d1d5db'}`,
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                <img
-                                    src={imgSrc}
-                                    alt={`Shape ${index}`}
+                    <div className="w-4/12 max-w-[430px]">
+                        <div className="w-full flex justify-between flex-wrap h-[300px]">
+                            {imgArr.map((imgSrc, index) => (
+                                <div
+                                    key={index}
+                                    onClick={() => handleImageButtonClick(index)}
                                     style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        objectFit: 'cover',
+                                        width: '140px',
+                                        height: '70px',
+                                        border: `1px solid ${selectedButton === index ? 'black' : '#d1d5db'}`,
+                                        cursor: 'pointer',
                                     }}
-                                />
+                                >
+                                    <img
+                                        src={imgSrc}
+                                        alt={`Shape ${index}`}
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <div>
+                            <div className="mb-4 p-4 bg-white border rounded shadow-md max-w-md">
+                                <h3 className="text-lg font-bold mb-2">Bridge Text Controls</h3>
+                                <div className="space-y-2">
+                                    {['curve', 'offsetY', 'textHeight', 'bottom'].map((key) => (
+                                        <div key={key} className="flex items-center justify-between gap-4">
+                                            <label className="w-1/3 capitalize">{key}:</label>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max={key === 'offsetY' ? 100 : 300}
+                                                value={bridgeParams[key]}
+                                                onChange={(e) =>
+                                                    setBridgeParams({ ...bridgeParams, [key]: parseInt(e.target.value, 10) })
+                                                }
+                                                className="w-full"
+                                            />
+                                            <span className="w-12 text-right">{bridgeParams[key]}</span>
+                                        </div>
+                                    ))}
+                                    <button
+                                        className="bg-black text-white px-4 py-2 rounded mt-2"
+                                        onClick={() => {
+                                            const activeObject = canvas.getActiveObject();
+                                            if (activeObject && activeObject.type === 'i-text') {
+                                                applyBridgeEffect(activeObject);
+                                            } else {
+                                                alert('Select a text object first.');
+                                            }
+                                        }}
+                                    >
+                                        Apply Bridge Effect
+                                    </button>
+                                </div>
                             </div>
-                        ))}
+                        </div>
                     </div>
                     <div className='w-8/12 flex justify-end' ref={canvasContainerRef}>
                         <canvas ref={canvasRef} />

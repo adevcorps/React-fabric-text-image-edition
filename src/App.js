@@ -1,11 +1,13 @@
 import logo from './logo.svg';
 import './App.css';
 import Eidtor from './component/Editor';
+import Test from './component/Test';
 
 
 function App() {
   return (
     <div className="App">
+      {/* <Test /> */}
       <Eidtor />
       {/* <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />

@@ -2,22 +2,20 @@ import React, { useState } from 'react';
 
 const SvgEditor = ({ onSvgUpload }) => {
   const [svgContent, setSvgContent] = useState('');
-
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file && file.type === 'image/svg+xml') {
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target.result;
-        setSvgContent(content); // Set the SVG content as state
-        onSvgUpload(content); // Pass the SVG content to the parent component
+        setSvgContent(content);
+        onSvgUpload(content);
       };
       reader.readAsText(file);
     } else {
       alert('Please upload a valid SVG file.');
     }
   };
-
   return (
     <div>
       <h1>SVG Editor</h1>
