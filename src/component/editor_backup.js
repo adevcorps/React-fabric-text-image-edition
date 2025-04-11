@@ -23,6 +23,8 @@ const Editor = () => {
     const lastActiveText = useRef(null);
     const isApplyingEffect = useRef(false);
     const [selectedButton, setSelectedButton] = useState(null);
+    // const [uploadedITexts, setUploadedITexts] = useState([]);
+    const [svgCode, setSvgCode] = useState('');
     const [bridgeParams, setBridgeParams] = useState({
         curve: 100,
         offsetY: 0,
@@ -50,13 +52,13 @@ const Editor = () => {
 
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
-
+        
         const handleSelectionCleared = () => {
             if (isApplyingEffect.current) return;
             const activeObject = fabricCanvas.getActiveObject();
             if (lastActiveText.current) {
                 isApplyingEffect.current = true;
-
+                
                 console.log("handleSelectionCleared")
                 applyBridgeEffect(lastActiveText.current);
                 isApplyingEffect.current = false;
@@ -105,6 +107,10 @@ const Editor = () => {
                         obj: tmpITextObj
                     };
                 }
+                // console.log(activeObject.cacheKey);
+            }
+            if (activeObject && activeObject.type === 'i-text') {
+                // console.log(activeObject.text)
             }
         })
 
@@ -245,7 +251,7 @@ const Editor = () => {
 
             console.log(img);
             console.log(uploadedITextsRef.current[iTextId]);
-
+            
             canvas.add(img);
             canvas.setActiveObject(img);
             canvas.renderAll();
@@ -276,47 +282,6 @@ const Editor = () => {
         }
     };
 
-    const handleDownloadVisibleObjectsAsPNG = () => {
-        const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
-
-        // Get bounding rect of all objects
-        const objects = canvas.getObjects();
-        if (objects.length === 0) return;
-
-        const group = new fabric.Group(objects, { originX: 'left', originY: 'top' });
-        const { left, top, width, height } = group.getBoundingRect();
-
-        // Create a new temporary canvas with the bounding size
-        const tempCanvas = new fabric.StaticCanvas(null, {
-            width: width,
-            height: height,
-        });
-
-        // Clone and offset objects into the new canvas
-        objects.forEach(obj => {
-            const cloned = fabric.util.object.clone(obj);
-            cloned.left = obj.left - left;
-            cloned.top = obj.top - top;
-            tempCanvas.add(cloned);
-        });
-
-        tempCanvas.renderAll();
-
-        // Export to PNG
-        const dataURL = tempCanvas.toDataURL({
-            format: 'png',
-            quality: 1.0,
-        });
-
-        // Trigger download
-        const link = document.createElement('a');
-        link.href = dataURL;
-        link.download = 'cropped-canvas.png';
-        link.click();
-    };
-
-
     return (
         <div className='p-2 pt-10'>
             <div className='w-11/12 mx-auto'>
@@ -324,15 +289,9 @@ const Editor = () => {
                 <div className="flex justify-between items-end mb-2">
                     <span>Choose Text Shape</span>
                     <input type="file" accept=".svg" onChange={handleSvgUpload} style={{ display: 'none' }} id="fileInput" />
-                    <div>
-                        <button className="bg-black border border-black text-white px-4 py-2 mx-4 rounded" onClick={() => document.getElementById('fileInput').click()}>
-                            Upload SVG
-                        </button>
-                        <a className="text-black underline cursor-pointer px-4 py-2" onClick={handleDownloadVisibleObjectsAsPNG}>
-                            Download as PNG
-                        </a>
-
-                    </div>
+                    <button className="bg-black text-white px-4 py-2 rounded" onClick={() => document.getElementById('fileInput').click()}>
+                        Upload SVG
+                    </button>
                 </div>
                 <div className='w-full flex justify-between'>
                     <div className="w-4/12 max-w-[430px]">
