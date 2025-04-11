@@ -318,7 +318,7 @@ const Editor = () => {
                         <button className="bg-black border border-black text-white px-4 py-2 mx-4 rounded" onClick={() => document.getElementById('fileInput').click()}>
                             Upload SVG
                         </button>
-                        <a className="text-black underline cursor-pointer px-4 py-2" onClick={handleDownloadPNG()}>
+                        <a className="text-black underline cursor-pointer px-4 py-2" onClick={()=>handleDownloadPNG()}>
                             Download as PNG
                         </a>
                     </div>
