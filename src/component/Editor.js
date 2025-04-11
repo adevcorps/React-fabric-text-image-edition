@@ -276,24 +276,18 @@ const Editor = () => {
         }
     };
 
-    const handleDownloadVisibleObjectsAsPNG = () => {
+    const handleDownloadPNG = () => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
-
-        // Get bounding rect of all objects
         const objects = canvas.getObjects();
         if (objects.length === 0) return;
 
         const group = new fabric.Group(objects, { originX: 'left', originY: 'top' });
         const { left, top, width, height } = group.getBoundingRect();
-
-        // Create a new temporary canvas with the bounding size
         const tempCanvas = new fabric.StaticCanvas(null, {
             width: width,
             height: height,
         });
-
-        // Clone and offset objects into the new canvas
         objects.forEach(obj => {
             const cloned = fabric.util.object.clone(obj);
             cloned.left = obj.left - left;
@@ -302,14 +296,10 @@ const Editor = () => {
         });
 
         tempCanvas.renderAll();
-
-        // Export to PNG
         const dataURL = tempCanvas.toDataURL({
             format: 'png',
             quality: 1.0,
         });
-
-        // Trigger download
         const link = document.createElement('a');
         link.href = dataURL;
         link.download = 'cropped-canvas.png';
@@ -328,10 +318,9 @@ const Editor = () => {
                         <button className="bg-black border border-black text-white px-4 py-2 mx-4 rounded" onClick={() => document.getElementById('fileInput').click()}>
                             Upload SVG
                         </button>
-                        <a className="text-black underline cursor-pointer px-4 py-2" onClick={handleDownloadVisibleObjectsAsPNG}>
+                        <a className="text-black underline cursor-pointer px-4 py-2" onClick={handleDownloadPNG()}>
                             Download as PNG
                         </a>
-
                     </div>
                 </div>
                 <div className='w-full flex justify-between'>
