@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFabricCanvas } from '../hooks/useFabricCanvas';
 import ControlPanel from './ControlPanel';
 import ImageButtonGrid from './ImageButtonGrid';
 
 const Editor = () => {
-    const fabricCanvasProps = useFabricCanvas();
     const {
         canvasRef,
         canvasContainerRef,
@@ -15,7 +14,41 @@ const Editor = () => {
         bridgeParams,
         setBridgeParams,
         bridgeParamRanges,
-    } = fabricCanvasProps;
+
+        archParams,
+        setArchParams,
+        archParamRanges,
+
+        applyBridgeEffect,
+        applyArchEffect,
+        fabricCanvasRef,
+    } = useFabricCanvas();
+
+    useEffect(() => {
+        if (selectedButton === null) return;
+
+        const canvas = fabricCanvasRef?.current;
+        const activeObj = canvas?.getActiveObject();
+
+        if (!activeObj || activeObj.type !== 'i-text') {
+            console.warn('No active i-text object found');
+            return;
+        }
+
+        // Trigger the effect based on button
+        switch (selectedButton) {
+            case 1: // Bridge
+                console.log('Applying Bridge effect...');
+                applyBridgeEffect(activeObj, bridgeParams);
+                break;
+            case 4: // Arch
+                console.log('Applying Arch effect...');
+                applyArchEffect(activeObj, archParams);
+                break;
+            default:
+                console.log('No effect defined for this shape.');
+        }
+    }, [selectedButton]);
 
     return (
         <div className="p-2 pt-10">
@@ -52,10 +85,11 @@ const Editor = () => {
                             onButtonClick={handleImageButtonClick}
                         />
                         <ControlPanel
-                            params={bridgeParams}
-                            setParams={setBridgeParams}
-                            paramRanges={bridgeParamRanges}
+                            params={selectedButton === 4 ? archParams : bridgeParams}
+                            setParams={selectedButton === 4 ? setArchParams : setBridgeParams}
+                            paramRanges={selectedButton === 4 ? archParamRanges : bridgeParamRanges}
                         />
+
                     </div>
                     <div ref={canvasContainerRef} className="w-8/12">
                         <canvas ref={canvasRef} />
