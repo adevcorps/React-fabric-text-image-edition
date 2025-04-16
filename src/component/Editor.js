@@ -11,6 +11,7 @@ const Editor = () => {
         handleDownloadPNG,
         handleImageButtonClick,
         selectedButton,
+
         bridgeParams,
         setBridgeParams,
         bridgeParamRanges,
@@ -19,11 +20,96 @@ const Editor = () => {
         setArchParams,
         archParamRanges,
 
+        valleyParams,
+        setValleyParams,
+        valleyParamRanges,
+
+        curveParams,
+        setCurveParams,
+        curveParamRanges,
+        
+        pinchParams,
+        setPinchParams,
+        pinchParamRanges,
+
+        bulgeParams,
+        setBulgeParams,
+        bulgeParamRanges,
+
         applyBridgeEffect,
         applyArchEffect,
+        applyValleyEffect,
+        applyCurveEffect,
+        applyPinchEffect,
+        applyBulgeEffect,
         fabricCanvasRef,
     } = useFabricCanvas();
 
+    const paramMap = {
+        1: {
+            params: bridgeParams,
+            setParams: setBridgeParams,
+            ranges: bridgeParamRanges,
+            applyEffect: applyBridgeEffect,
+        },
+        2: {
+            params: valleyParams,
+            setParams: setValleyParams,
+            ranges: valleyParamRanges,
+            applyEffect: applyValleyEffect,
+        },
+        3: {
+            params: curveParams,
+            setParams: setCurveParams,
+            ranges: curveParamRanges,
+            applyEffect: applyCurveEffect,
+        },
+        4: {
+            params: archParams,
+            setParams: setArchParams,
+            ranges: archParamRanges,
+            applyEffect: applyArchEffect,
+        },
+        5: {
+            params: pinchParams,
+            setParams: setPinchParams,
+            ranges: pinchParamRanges,
+            applyEffect: applyPinchEffect,
+        },
+        6: {
+            params: bulgeParams,
+            setParams: setBulgeParams,
+            ranges: bulgeParamRanges,
+            applyEffect: applyBulgeEffect,
+        },
+        // Add more as needed...
+    };
+
+    // useEffect(() => {
+    //     if (selectedButton === null) return;
+
+    //     const canvas = fabricCanvasRef?.current;
+    //     const activeObj = canvas?.getActiveObject();
+
+    //     if (!activeObj || activeObj.type !== 'i-text') {
+    //         console.warn('No active i-text object found');
+    //         return;
+    //     }
+
+    //     // Trigger the effect based on button
+    //     switch (selectedButton) {
+    //         case 1: // Bridge
+    //             console.log('Applying Bridge effect...');
+    //             applyBridgeEffect(activeObj, bridgeParams);
+    //             break;
+    //         case 4: // Arch
+    //             console.log('Applying Arch effect...');
+    //             applyArchEffect(activeObj, archParams);
+    //             break;
+    //         default:
+    //             console.log('No effect defined for this shape.');
+    //     }
+    // }, [selectedButton]);
     useEffect(() => {
         if (selectedButton === null) return;
 
@@ -35,21 +121,14 @@ const Editor = () => {
             return;
         }
 
-        // Trigger the effect based on button
-        switch (selectedButton) {
-            case 1: // Bridge
-                console.log('Applying Bridge effect...');
-                applyBridgeEffect(activeObj, bridgeParams);
-                break;
-            case 4: // Arch
-                console.log('Applying Arch effect...');
-                applyArchEffect(activeObj, archParams);
-                break;
-            default:
-                console.log('No effect defined for this shape.');
+        const config = paramMap[selectedButton];
+        if (config && typeof config.applyEffect === 'function') {
+            console.log(`Applying effect for button ${selectedButton}...`);
+            config.applyEffect(activeObj, config.params);
+        } else {
+            console.log('No effect defined for this shape.');
         }
     }, [selectedButton]);
-
     return (
         <div className="p-2 pt-10">
             <div className="w-11/12 mx-auto">
@@ -84,11 +163,18 @@ const Editor = () => {
                             selectedButton={selectedButton}
                             onButtonClick={handleImageButtonClick}
                         />
-                        <ControlPanel
+                        {/* <ControlPanel
                             params={selectedButton === 4 ? archParams : bridgeParams}
                             setParams={selectedButton === 4 ? setArchParams : setBridgeParams}
                             paramRanges={selectedButton === 4 ? archParamRanges : bridgeParamRanges}
-                        />
+                        /> */}
+                        {paramMap[selectedButton]?.params && (
+                            <ControlPanel
+                                params={paramMap[selectedButton].params}
+                                setParams={paramMap[selectedButton].setParams}
+                                paramRanges={paramMap[selectedButton].ranges}
+                            />
+                        )}
 
                     </div>
                     <div ref={canvasContainerRef} className="w-8/12">

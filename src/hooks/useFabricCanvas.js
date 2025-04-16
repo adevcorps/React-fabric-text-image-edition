@@ -22,13 +22,6 @@ export const useFabricCanvas = () => {
         bottom: 188,
     });
 
-    const [archParams, setArchParams] = useState({
-        curve: 100,
-        offsetY: 0,
-        textHeight: 180,
-        bottom: 0,
-    })
-
     const [bridgeParamRanges] = useState({
         curve: { min: 0, max: 300 },
         offsetY: { min: 0, max: 200 },
@@ -36,12 +29,75 @@ export const useFabricCanvas = () => {
         bottom: { min: 0, max: 400 },
     });
 
+    const [archParams, setArchParams] = useState({
+        curve: 100,
+        offsetY: 0,
+        textHeight: 180,
+        bottom: 0,
+    })
+
     const [archParamRanges] = useState({
         curve: { min: 0, max: 300 },
         offsetY: { min: 0, max: 200 },
         textHeight: { min: 0, max: 400 },
         bottom: { min: 0, max: 400 },
     });
+
+    const [valleyParams, setValleyParams] = useState({
+        curve: 100,
+        offsetY: 0,
+        textHeight: 180,
+        bottom: 0,
+    })
+
+    const [valleyParamRanges] = useState({
+        curve: { min: 0, max: 300 },
+        offsetY: { min: 0, max: 200 },
+        textHeight: { min: 0, max: 400 },
+        bottom: { min: 0, max: 400 },
+    });
+
+    const [curveParams, setCurveParams] = useState({
+        curve: 40,
+        offsetY: 100,
+        textHeight: 180,
+        bottom: 0
+    });
+
+    const curveParamRanges = {
+        curve: { min: 0, max: 300 },
+        offsetY: { min: 0, max: 200 },
+        textHeight: { min: 0, max: 400 },
+        bottom: { min: 0, max: 400 },
+    };
+
+    const [pinchParams, setPinchParams] = useState({
+        curve: 60,
+        offsetY: 5,
+        textHeight: 180,
+        bottom: 180,
+    });
+
+    const pinchParamRanges = {
+        curve: { min: -200, max: 200 },
+        offsetY: { min: 0, max: 200 },
+        textHeight: { min: 0, max: 400 },
+        bottom: { min: 0, max: 400 },
+    };
+
+    const [bulgeParams, setBulgeParams] = useState({
+        curve: 80,
+        offsetY: 0,
+        textHeight: 180,
+        bottom: 180,
+    });
+
+    const bulgeParamRanges = {
+        curve: { min: 0, max: 300 },
+        offsetY: { min: 0, max: 200 },
+        textHeight: { min: 50, max: 400 },
+        bottom: { min: 0, max: 400 },
+    };
 
     // Initialize Fabric.js canvas and handle resizing
     useEffect(() => {
@@ -504,6 +560,420 @@ export const useFabricCanvas = () => {
 
     };
 
+    const applyValleyEffect = (valleyObject, valleyParams) => {
+        if (!valleyObject || valleyObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const {
+            text,
+            left,
+            top,
+            fill,
+            fontSize,
+            fontFamily,
+            angle,
+            scaleX = 1,
+            scaleY = 1,
+        } = valleyObject;
+
+        const w = valleyObject.width * scaleX;
+        const h = valleyObject.height * scaleY;
+
+        const canvasWidth = Math.ceil(w);
+        const canvasHeight = Math.ceil(valleyParams.textHeight + valleyParams.curve);
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasWidth;
+        tempCanvas.height = canvasHeight;
+        const ctx = tempCanvas.getContext('2d');
+
+        const os = document.createElement('canvas');
+        os.width = canvasWidth;
+        os.height = canvasHeight;
+        const octx = os.getContext('2d');
+
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+
+        const font = `${valleyParams.textHeight}px ${fontFamily || 'NBA Bobcats'}`;
+        octx.font = font;
+        const cText = text.toUpperCase();
+
+        octx.clearRect(0, 0, canvasWidth, canvasHeight);
+        octx.save();
+        const measuredWidth = octx.measureText(cText).width;
+        octx.scale(canvasWidth / measuredWidth, 1);
+        octx.fillText(cText, measuredWidth / 2, 0);
+        octx.restore();
+
+        const radius = (canvasWidth - 20) / 2;
+
+        for (let i = 0; i < canvasWidth; i++) {
+            const normalizedX = ((i - radius) / radius);
+            const clampedX = Math.max(-1, Math.min(1, normalizedX)); // clamp to avoid NaN
+            const curveY = valleyParams.curve * Math.sqrt(1 - clampedX * clampedX);
+
+            ctx.drawImage(
+                os,
+                i, 0, 1, valleyParams.textHeight,
+                i, valleyParams.offsetY + curveY,
+                1, valleyParams.textHeight - curveY
+            );
+        }
+
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            if (canvas.getObjects().includes(valleyObject)) {
+                canvas.remove(valleyObject);
+            }
+
+            const iTextId = uploadedITextsRef.current.findIndex(obj => obj.iTextId === valleyObject.id);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+    const applyCurveEffect = (textObject, curveParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const {
+            text,
+            left,
+            top,
+            fill,
+            fontSize,
+            fontFamily,
+            angle,
+            scaleX = 1,
+            scaleY = 1,
+        } = textObject;
+
+        const {
+            radius = textObject.width * scaleX,           // Bigger radius = smoother arc
+            offsetY = 0,
+            spacing = 0.85,         // Tighten spacing
+            arcAngle = 60           // Spread text along this many degrees (in total)
+        } = curveParams;
+
+        const chars = text.split('');
+        console.log(textObject.width * scaleX);
+        const charCount = chars.length;
+        const actualFontSize = textObject.height * scaleY;
+        const arcRads = (arcAngle * Math.PI) / 180; // total arc in radians
+        const angleStep = arcRads / (charCount - 1);
+
+        const canvasSize = radius + actualFontSize;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasSize;
+        tempCanvas.height = canvasSize;
+        const ctx = tempCanvas.getContext('2d');
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.translate(canvasSize / 2, radius + offsetY);
+
+        let startAngle = -arcRads / 2;
+
+        for (let i = 0; i < charCount; i++) {
+            const char = chars[i];
+            const angle = startAngle + i * angleStep;
+            const x = radius * Math.sin(angle);
+            const y = -radius * Math.cos(angle);
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.font = `${actualFontSize}px ${fontFamily}`;
+            ctx.fillStyle = fill;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(char, 0, 0);
+            ctx.restore();
+        }
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle,
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+
+            const iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+    const applyPinchEffect = (textObject, pinchParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const {
+            text,
+            left,
+            top,
+            fill,
+            fontSize,
+            fontFamily,
+            angle,
+            scaleX = 1,
+            scaleY = 1,
+        } = textObject;
+
+        const {
+            amount = 0.5,       // How intense the pinch is (0 to 1)
+            textHeight = 100,   // Base text height (affects scale)
+            offsetY = 0,        // Vertical shift
+        } = pinchParams;
+
+        const w = textObject.width * scaleX;
+        const h = textObject.height * scaleY;
+        const canvasWidth = Math.ceil(w);
+        const canvasHeight = Math.ceil(h);
+
+        // Draw text onto an offscreen canvas
+        const os = document.createElement('canvas');
+        os.width = canvasWidth;
+        os.height = canvasHeight;
+        const octx = os.getContext('2d');
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.font = `${h}px ${fontFamily}`;
+        octx.clearRect(0, 0, canvasWidth, canvasHeight);
+        octx.save();
+
+        const measuredWidth = octx.measureText(text.toUpperCase()).width;
+        octx.scale(canvasWidth / measuredWidth, 1);
+        octx.fillText(text.toUpperCase(), measuredWidth / 2, 0);
+        octx.restore();
+
+        // Now distort it
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasWidth;
+        tempCanvas.height = canvasHeight;
+        const ctx = tempCanvas.getContext('2d');
+
+        const mid = canvasWidth / 2;
+
+        for (let i = 0; i < canvasWidth; i++) {
+            const distFromCenter = Math.abs(i - mid) / mid;
+            const scale = 1 - amount * (1 - distFromCenter ** 2); // quadratic falloff
+            const scaledHeight = textHeight * scale;
+            const y = offsetY + (canvasHeight - scaledHeight) / 2;
+
+            ctx.drawImage(os, i, 0, 1, textHeight, i, y, 1, scaledHeight);
+        }
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle,
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+
+            const iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey,
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+    const applyBulgeEffect = (textObject, bulgeParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const { text, left, top, fill, fontSize, fontFamily, angle, scaleX, scaleY } = textObject;
+        const w = textObject.width * (scaleX || 1);
+        const h = textObject.height * (scaleY || 1);
+
+        const { intensity = 0.5, textHeight = h, offsetY = 0 } = bulgeParams;
+
+        const centerX = w / 2;
+
+        // Measure max vertical scale for canvas height
+        let maxScaleY = 0;
+        for (let i = 0; i < w; i++) {
+            const dx = (i - centerX) / centerX;
+            const scaleY = 1 + intensity * (1 - dx * dx);
+            if (scaleY > maxScaleY) maxScaleY = scaleY;
+        }
+
+        const paddedHeight = Math.ceil(textHeight * maxScaleY) + Math.abs(offsetY) + 20; // add buffer
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = Math.ceil(w);
+        tempCanvas.height = paddedHeight;
+        const ctx = tempCanvas.getContext('2d');
+
+        const os = document.createElement('canvas');
+        os.width = w;
+        os.height = textHeight;
+        const octx = os.getContext('2d');
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.font = `${h * 0.7}px ${fontFamily}`;
+        const cText = text.toUpperCase();
+        const measuredWidth = octx.measureText(cText).width;
+        octx.scale(w / measuredWidth, 1);
+        octx.fillText(cText, measuredWidth / 2, 0);
+
+        for (let i = 0; i < w; i++) {
+            const dx = (i - centerX) / centerX;
+            const scaleY = 1 + intensity * (1 - dx * dx);
+            const sliceY = (paddedHeight - textHeight * scaleY) / 2 + offsetY;
+
+            ctx.drawImage(os, i, 0, 1, textHeight, i, sliceY, 1, textHeight * scaleY);
+        }
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+            const objects = canvas.getObjects();
+            objects.forEach(obj => {
+                if (obj.originalTextData?.text === text) {
+                    canvas.remove(obj);
+                }
+            });
+
+            let iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const getiTextObjectArrId = (e) => {
         let id = null
         let iTextObj = uploadedITextsRef.current.find((obj) => obj.iTextId === e.id);
@@ -528,8 +998,28 @@ export const useFabricCanvas = () => {
         setArchParams,
         archParamRanges,
 
+        valleyParams,
+        setValleyParams,
+        valleyParamRanges,
+
+        curveParams,
+        setCurveParams,
+        curveParamRanges,
+
+        pinchParams,
+        setPinchParams,
+        pinchParamRanges,
+
+        bulgeParams,
+        setBulgeParams,
+        bulgeParamRanges,
+
         applyBridgeEffect,
         applyArchEffect,
+        applyValleyEffect,
+        applyCurveEffect,
+        applyPinchEffect,
+        applyBulgeEffect,
         fabricCanvasRef
     };
 };
