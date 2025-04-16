@@ -99,6 +99,69 @@ export const useFabricCanvas = () => {
         bottom: { min: 0, max: 400 },
     };
 
+    const [perspectiveParams, setPerspectiveParams] = useState({
+        scaleStart: 1.5,
+        scaleEnd: 0.5,
+        offsetY: 20,
+        textHeight: 200
+    });
+
+    const perspectiveParamRanges = {
+        scaleStart: { min: 0.1, max: 3 },
+        scaleEnd: { min: 0.1, max: 3 },
+        offsetY: { min: -200, max: 200 },
+        textHeight: { min: 50, max: 400 },
+    };
+
+    const [pointedParams, setPointedParams] = useState({
+        maxHeight: 200,
+        textHeight: 180,
+        offsetY: 20,
+    });
+
+    const pointedParamRanges = {
+        maxHeight: { min: 0, max: 300 },
+        textHeight: { min: 50, max: 400 },
+        offsetY: { min: 0, max: 100 },
+    };
+
+    const [downwardParams, setDownwardParams] = useState({
+        maxHeight: 80,
+        textHeight: 180,
+        offsetY: 50,
+    });
+
+    const downwardParamRanges = {
+        maxHeight: { min: 0, max: 300 },
+        textHeight: { min: 50, max: 400 },
+        offsetY: { min: 0, max: 100 },
+    };
+
+    const [upwardParams, setUpwardParams] = useState({
+        maxHeight: 80,
+        textHeight: 180,
+        offsetY: 50,
+    });
+
+    const upwardParamRanges = {
+        maxHeight: { min: 0, max: 300 },
+        textHeight: { min: 50, max: 400 },
+        offsetY: { min: 0, max: 100 },
+    };
+
+    const [coneParams, setConeParams] = useState({
+        maxHeight: 200,
+        textHeight: 180,
+        offsetY: 20,
+    });
+
+    const coneParamRanges = {
+        maxHeight: { min: 0, max: 300 },
+        textHeight: { min: 50, max: 400 },
+        offsetY: { min: 0, max: 100 },
+    };
+
+
     // Initialize Fabric.js canvas and handle resizing
     useEffect(() => {
         const fabricCanvas = new fabric.Canvas(canvasRef.current, {
@@ -954,6 +1017,495 @@ export const useFabricCanvas = () => {
         });
     };
 
+    const applyPerspectiveEffect = (textObject, perspectiveParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const { text, left, top, fill, fontSize, fontFamily, angle, scaleX, scaleY } = textObject;
+        const w = textObject.width * (scaleX || 1);
+        const h = textObject.height * (scaleY || 1);
+
+        const {
+            maxScaleY = 1.6,  // max vertical stretch at center
+            minScaleY = 0.6,  // min vertical stretch at edges
+            textHeight = h,
+            offsetY = 20,
+        } = perspectiveParams;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = textHeight * maxScaleY + offsetY * 2;
+
+        const ctx = tempCanvas.getContext('2d');
+
+        const os = document.createElement('canvas');
+        os.width = w;
+        os.height = textHeight;
+        const octx = os.getContext('2d');
+
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.font = `${h}px ${fontFamily}`;
+
+        const cText = text.toUpperCase();
+        const measuredWidth = octx.measureText(cText).width;
+        octx.clearRect(0, 0, w, textHeight);
+        octx.save();
+        octx.scale(w / measuredWidth, 1);
+        octx.fillText(cText, measuredWidth / 2, 0);
+        octx.restore();
+
+        const centerX = w;
+
+        for (let x = 0; x < w; x++) {
+            const dx = Math.abs(x - centerX);
+            const t = dx / centerX; // 0 at center, 1 at edges
+            const scaleY = maxScaleY - (maxScaleY - minScaleY) * t;
+            const drawHeight = textHeight * scaleY;
+            const dy = (tempCanvas.height - drawHeight) / 2;
+
+            ctx.drawImage(
+                os,
+                x, 0, 1, textHeight,
+                x, dy, 1, drawHeight
+            );
+        }
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+            const objects = canvas.getObjects();
+            objects.forEach(obj => {
+                if (obj.originalTextData?.text === text) {
+                    canvas.remove(obj);
+                }
+            });
+
+            let iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+    const applyPointedEffect = (textObject, pointedParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const { text, left, top, fill, fontSize, fontFamily, angle, scaleX, scaleY } = textObject;
+        const w = textObject.width * (scaleX || 1);
+        const h = textObject.height * (scaleY || 1);
+        const { maxHeight, textHeight, offsetY } = pointedParams;
+
+        const canvasHeight = textHeight + maxHeight + (offsetY * 2);
+
+        // Create temp canvas
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = canvasHeight;
+        const ctx = tempCanvas.getContext('2d');
+
+        // Offscreen text canvas
+        const os = document.createElement('canvas');
+        os.width = w;
+        os.height = textHeight;
+        const octx = os.getContext('2d');
+
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.font = `${h}px ${fontFamily}`;
+
+        const upperText = text.toUpperCase();
+        const measuredWidth = octx.measureText(upperText).width;
+
+        octx.save();
+        octx.scale(w / measuredWidth, 1);
+        octx.clearRect(0, 0, w, textHeight);
+        octx.fillText(upperText, measuredWidth / 2, 0);
+        octx.restore();
+
+        const centerX = w / 2;
+
+        for (let x = 0; x < w; x++) {
+            const dx = Math.abs(x - centerX);
+            const ratio = dx / centerX; // 0 at center, 1 at edges
+            const verticalScale = 1 + ((maxHeight / textHeight) * (1 - ratio));
+
+            const sliceHeight = textHeight;
+            const scaledHeight = sliceHeight * verticalScale;
+            const offsetYAdjusted = offsetY + (maxHeight - (scaledHeight - textHeight));
+
+            ctx.drawImage(os, x, 0, 1, sliceHeight, x, offsetYAdjusted, 1, scaledHeight);
+        }
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+            const objects = canvas.getObjects();
+            objects.forEach(obj => {
+                if (obj.originalTextData?.text === text) {
+                    canvas.remove(obj);
+                }
+            });
+
+            let iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+    const applyDownwardEffect = (textObject, upwardParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const { text, left, top, fill, fontSize, fontFamily, angle, scaleX, scaleY } = textObject;
+        const w = textObject.width * (scaleX || 1);
+        const h = textObject.height * (scaleY || 1);
+        const { maxHeight, textHeight, offsetY } = upwardParams;
+
+        const totalHeight = offsetY + textHeight + maxHeight;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = totalHeight;
+        const ctx = tempCanvas.getContext('2d');
+
+        // Create offscreen canvas for original text
+        const os = document.createElement('canvas');
+        os.width = w;
+        os.height = textHeight;
+        const octx = os.getContext('2d');
+
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.font = `${h}px ${fontFamily}`;
+
+        const upperText = text.toUpperCase();
+        const measuredWidth = octx.measureText(upperText).width;
+
+        octx.save();
+        octx.scale(w / measuredWidth, 1);
+        octx.clearRect(0, 0, w, textHeight);
+        octx.fillText(upperText, measuredWidth / 2, 0);
+        octx.restore();
+
+        for (let x = 0; x < w; x++) {
+            const ratio = x / w;
+            const stretch = ratio * maxHeight;
+            const finalHeight = textHeight + stretch;
+
+            // Shift the text upward by the added stretch, so top edge stays flat
+            const destY = offsetY - stretch;
+
+            ctx.drawImage(os, x, 0, 1, textHeight, x, offsetY, 1, finalHeight);
+            console.log(os, x, 0, 1, textHeight, x, 0, 1, finalHeight);
+        }
+
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+            const objects = canvas.getObjects();
+            objects.forEach(obj => {
+                if (obj.originalTextData?.text === text) {
+                    canvas.remove(obj);
+                }
+            });
+
+            let iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+    const applyUpwardEffect = (textObject, upwardParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const { text, left, top, fill, fontSize, fontFamily, angle, scaleX, scaleY } = textObject;
+        const w = textObject.width * (scaleX || 1);
+        const h = textObject.height * (scaleY || 1);
+        const { maxHeight, textHeight, offsetY } = upwardParams;
+
+        const totalHeight = offsetY + textHeight + maxHeight;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = totalHeight;
+        const ctx = tempCanvas.getContext('2d');
+
+        // Create offscreen canvas for original text
+        const os = document.createElement('canvas');
+        os.width = w;
+        os.height = textHeight;
+        const octx = os.getContext('2d');
+
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.font = `${h}px ${fontFamily}`;
+
+        const upperText = text.toUpperCase();
+        const measuredWidth = octx.measureText(upperText).width;
+
+        octx.save();
+        octx.scale(w / measuredWidth, 1);
+        octx.clearRect(0, 0, w, textHeight);
+        octx.fillText(upperText, measuredWidth / 2, 0);
+        octx.restore();
+
+        for (let x = 0; x < w; x++) {
+            const ratio = x / w;
+            const stretch = ratio * maxHeight;
+            const finalHeight = textHeight + stretch;
+
+            // Shift the text upward by the added stretch, so top edge stays flat
+            const destY = offsetY - stretch;
+
+            ctx.drawImage(os, x, 0, 1, textHeight, x, destY, 1, finalHeight);
+        }
+
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+            const objects = canvas.getObjects();
+            objects.forEach(obj => {
+                if (obj.originalTextData?.text === text) {
+                    canvas.remove(obj);
+                }
+            });
+
+            let iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+    const applyConeEffect = (textObject, coneParams) => {
+        if (!textObject || textObject.type !== 'i-text') return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const { text, left, top, fill, fontSize, fontFamily, angle, scaleX, scaleY } = textObject;
+        const w = textObject.width * (scaleX || 1);
+        const h = textObject.height * (scaleY || 1);
+
+        const {
+            maxScaleY = 1.6,  // max vertical stretch at center
+            minScaleY = 0.6,  // min vertical stretch at edges
+            textHeight = h,
+            offsetY = 20,
+        } = coneParams;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = textHeight * maxScaleY + offsetY * 2;
+
+        const ctx = tempCanvas.getContext('2d');
+
+        const os = document.createElement('canvas');
+        os.width = w;
+        os.height = textHeight;
+        const octx = os.getContext('2d');
+
+        octx.fillStyle = fill;
+        octx.textBaseline = 'top';
+        octx.textAlign = 'center';
+        octx.font = `${h}px ${fontFamily}`;
+
+        const cText = text.toUpperCase();
+        const measuredWidth = octx.measureText(cText).width;
+        octx.clearRect(0, 0, w, textHeight);
+        octx.save();
+        octx.scale(w / measuredWidth, 1);
+        octx.fillText(cText, measuredWidth / 2, 0);
+        octx.restore();
+
+        const centerX = w;
+
+        for (let x = 0; x < w; x++) {
+            const dx = Math.abs(x - centerX);
+            const t = dx / centerX; // 0 at center, 1 at edges
+            const scaleY = maxScaleY - (maxScaleY - minScaleY) * t;
+            const drawHeight = textHeight * scaleY;
+            const dy = (tempCanvas.height - drawHeight) / 2;
+
+            ctx.drawImage(
+                os,
+                x, 0, 1, textHeight,
+                x, dy, 1, drawHeight
+            );
+        }
+
+        const dataURL = tempCanvas.toDataURL();
+
+        fabric.Image.fromURL(dataURL, (img) => {
+            img.originalTextData = {
+                text,
+                left,
+                top,
+                fontSize,
+                fontFamily,
+                fill,
+                angle
+            };
+
+            img.set({
+                left,
+                top,
+                angle,
+                originX: 'left',
+                originY: 'top',
+                selectable: true,
+            });
+
+            canvas.remove(textObject);
+            const objects = canvas.getObjects();
+            objects.forEach(obj => {
+                if (obj.originalTextData?.text === text) {
+                    canvas.remove(obj);
+                }
+            });
+
+            let iTextId = getiTextObjectArrId(textObject);
+            if (iTextId !== -1) {
+                uploadedITextsRef.current[iTextId] = {
+                    ...uploadedITextsRef.current[iTextId],
+                    texture: img.cacheKey
+                };
+            }
+
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
+    };
+
+
+
+
+
+
+
 
 
 
@@ -1014,12 +1566,39 @@ export const useFabricCanvas = () => {
         setBulgeParams,
         bulgeParamRanges,
 
+        perspectiveParams,
+        setPerspectiveParams,
+        perspectiveParamRanges,
+
+        pointedParams,
+        setPointedParams,
+        pointedParamRanges,
+
+        downwardParams,
+        setDownwardParams,
+        downwardParamRanges,
+
+
+        upwardParams,
+        setUpwardParams,
+        upwardParamRanges,
+
+        coneParams,
+        setConeParams,
+        coneParamRanges,
+
         applyBridgeEffect,
         applyArchEffect,
         applyValleyEffect,
         applyCurveEffect,
         applyPinchEffect,
         applyBulgeEffect,
+        applyPerspectiveEffect,
+        applyPointedEffect,
+        applyDownwardEffect,
+        applyUpwardEffect,
+        applyConeEffect,
+
         fabricCanvasRef
     };
 };

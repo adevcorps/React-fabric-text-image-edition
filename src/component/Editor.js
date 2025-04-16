@@ -36,12 +36,38 @@ const Editor = () => {
         setBulgeParams,
         bulgeParamRanges,
 
+        perspectiveParams,
+        setPerspectiveParams,
+        perspectiveParamRanges,
+
+        pointedParams,
+        setPointedParams,
+        pointedParamRanges,
+
+        downwardParams,
+        setDownwardParams,
+        downwardParamRanges,
+
+        upwardParams,
+        setUpwardParams,
+        upwardParamRanges,
+
+        coneParams,
+        setConeParams,
+        coneParamRanges,
+
         applyBridgeEffect,
         applyArchEffect,
         applyValleyEffect,
         applyCurveEffect,
         applyPinchEffect,
         applyBulgeEffect,
+        applyPerspectiveEffect,
+        applyPointedEffect,
+        applyDownwardEffect,
+        applyUpwardEffect,
+        applyConeEffect,
+
         fabricCanvasRef,
     } = useFabricCanvas();
 
@@ -81,6 +107,36 @@ const Editor = () => {
             setParams: setBulgeParams,
             ranges: bulgeParamRanges,
             applyEffect: applyBulgeEffect,
+        },
+        7: {
+            params: perspectiveParams,
+            setParams: setPerspectiveParams,
+            ranges: perspectiveParamRanges,
+            applyEffect: applyPerspectiveEffect,
+        },
+        8: {
+            params: pointedParams,
+            setParams: setPointedParams,
+            ranges: pointedParamRanges,
+            applyEffect: applyPointedEffect,
+        },
+        9: {
+            params: downwardParams,
+            setParams: setDownwardParams,
+            ranges: downwardParamRanges,
+            applyEffect: applyDownwardEffect,
+        },
+        10: {
+            params: upwardParams,
+            setParams: setUpwardParams,
+            ranges: upwardParamRanges,
+            applyEffect: applyUpwardEffect,
+        },
+        11: {
+            params: coneParams,
+            setParams: setConeParams,
+            ranges: coneParamRanges,
+            applyEffect: applyConeEffect,
         },
         // Add more as needed...
     };
