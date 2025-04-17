@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
-import { imgArr } from '../utils/imageConstants';
+import { arch, imgArr } from '../utils/imageConstants';
 
 
 export const useFabricCanvas = () => {
@@ -30,14 +30,14 @@ export const useFabricCanvas = () => {
     });
 
     const [archParams, setArchParams] = useState({
-        curve: 100,
+        curve: 50,
         offsetY: 0,
         textHeight: 180,
         bottom: 0,
     })
 
     const [archParamRanges] = useState({
-        curve: { min: 0, max: 300 },
+        curve: { min: 0, max: 200 },
         offsetY: { min: 0, max: 200 },
         textHeight: { min: 0, max: 400 },
         bottom: { min: 0, max: 400 },
@@ -308,7 +308,35 @@ export const useFabricCanvas = () => {
         reader.readAsText(file);
     };
 
+    useEffect(() => {
+        handleResize("arch");
+    }, [archParams])
 
+    useEffect(() => {
+        handleResize("bridge");
+    }, [bridgeParams])
+
+
+    const handleResize = (flag) => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        const activeObject = canvas.getActiveObject();
+        console.log(activeObject);
+        if (activeObject && activeObject.cacheKey) {
+            let iTextObj = uploadedITextsRef.current.find((obj) => obj.texture === activeObject.cacheKey);
+            console.log("handleResize");
+            if(flag == "arch")
+            {
+                applyArchEffect(iTextObj.obj, activeObject)
+                canvas.remove(activeObject)
+            }
+            // else if(flag == "bridge"){
+            else{
+                applyBridgeEffect(iTextObj.obj, activeObject)
+                canvas.remove(activeObject)
+            }
+        }
+    }
     const handleDownloadPNG = () => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
@@ -447,7 +475,7 @@ export const useFabricCanvas = () => {
     //     });
     // };
 
-    const applyArchEffect = (archObject) => {
+    const applyArchEffect = (archObject, selectedObject = null) => {
         if (!archObject || archObject.type !== 'i-text') return;
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
@@ -521,6 +549,7 @@ export const useFabricCanvas = () => {
             if (canvas.getObjects().includes(archObject)) {
                 canvas.remove(archObject);
             }
+            
 
             let iTextId = getiTextObjectArrId(archObject);
             if (iTextId !== -1) {
@@ -531,6 +560,11 @@ export const useFabricCanvas = () => {
             }
 
             canvas.add(img);
+            if(selectedObject){
+                console.log("object isn't null");
+                canvas.remove(selectedObject);
+            }
+
             canvas.setActiveObject(img);
             canvas.renderAll();
         });
