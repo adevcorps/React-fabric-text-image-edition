@@ -325,15 +325,14 @@ export const useFabricCanvas = () => {
         if (activeObject && activeObject.cacheKey) {
             let iTextObj = uploadedITextsRef.current.find((obj) => obj.texture === activeObject.cacheKey);
             console.log("handleResize");
-            if(flag == "arch")
-            {
+            if (flag == "arch") {
                 applyArchEffect(iTextObj.obj, activeObject)
                 // canvas.remove(activeObject)
             }
             // else if(flag == "bridge"){
-            else{
+            else {
                 applyBridgeEffect(iTextObj.obj, activeObject)
-                canvas.remove(activeObject)
+                // canvas.remove(activeObject)
             }
         }
     }
@@ -537,7 +536,7 @@ export const useFabricCanvas = () => {
         //     const normalizedX = (i - midX) / midX; // center at 0
         //     const curveY = curve * Math.sqrt(1 - Math.min(normalizedX * normalizedX, 1)); // avoid NaN
         //     const y = Math.round(offsetY + (curve - curveY));
-        
+
         //     ctx.drawImage(os, i, 0, 1, textHeight, i, y, 1, textHeight);
         // }
         // === Create Image from temp canvas ===
@@ -557,7 +556,7 @@ export const useFabricCanvas = () => {
             if (canvas.getObjects().includes(archObject)) {
                 canvas.remove(archObject);
             }
-            
+
 
             let iTextId = getiTextObjectArrId(archObject);
             if (iTextId !== -1) {
@@ -569,7 +568,7 @@ export const useFabricCanvas = () => {
 
             canvas.add(img);
             const activeObj = canvas.getActiveObject();
-            if(activeObj){
+            if (activeObj) {
                 canvas.remove(activeObj);
             }
             // if(selectedObject){
@@ -663,6 +662,10 @@ export const useFabricCanvas = () => {
             console.log(uploadedITextsRef.current[iTextId]);
 
             canvas.add(img);
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                canvas.remove(activeObj);
+            }
             canvas.setActiveObject(img);
             canvas.renderAll();
         });
