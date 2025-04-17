@@ -328,7 +328,7 @@ export const useFabricCanvas = () => {
             if(flag == "arch")
             {
                 applyArchEffect(iTextObj.obj, activeObject)
-                canvas.remove(activeObject)
+                // canvas.remove(activeObject)
             }
             // else if(flag == "bridge"){
             else{
@@ -523,15 +523,23 @@ export const useFabricCanvas = () => {
         octx.restore();
 
         // === Apply arch effect ===
-        const radius = canvasWidth / 2;
-        for (let i = 0; i < canvasWidth; i++) {
+        const radius = (canvasWidth - (originalHeight / 15)) / 2;
+        for (let i = 1; i < canvasWidth; i++) {
             const normalizedX = (i - radius) / radius; // [-1, 1]
             const curveY = curve * Math.sqrt(1 - normalizedX * normalizedX); // Arch profile
-            const y = offsetY + (bottom - curveY); // Adjusted Y drawing
+            const y = Math.round(offsetY + (bottom - curveY)); // Adjusted Y drawing
 
             ctx.drawImage(os, i, 0, 1, textHeight, i, y, 1, textHeight);
         }
 
+        // for (let i = 0; i < originalWidth; i++) {
+        //     const midX = originalWidth / 2;
+        //     const normalizedX = (i - midX) / midX; // center at 0
+        //     const curveY = curve * Math.sqrt(1 - Math.min(normalizedX * normalizedX, 1)); // avoid NaN
+        //     const y = Math.round(offsetY + (curve - curveY));
+        
+        //     ctx.drawImage(os, i, 0, 1, textHeight, i, y, 1, textHeight);
+        // }
         // === Create Image from temp canvas ===
         const dataURL = tempCanvas.toDataURL();
         fabric.Image.fromURL(dataURL, (img) => {
@@ -560,10 +568,14 @@ export const useFabricCanvas = () => {
             }
 
             canvas.add(img);
-            if(selectedObject){
-                console.log("object isn't null");
-                canvas.remove(selectedObject);
+            const activeObj = canvas.getActiveObject();
+            if(activeObj){
+                canvas.remove(activeObj);
             }
+            // if(selectedObject){
+            //     console.log("object isn't null");
+            //     canvas.remove(selectedObject);
+            // }
 
             canvas.setActiveObject(img);
             canvas.renderAll();
