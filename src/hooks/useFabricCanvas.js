@@ -1057,7 +1057,7 @@ export const useFabricCanvas = () => {
         octx.fillText(cText, measuredWidth / 2, 0);
         octx.restore();
 
-        const centerX = w;
+        const centerX = w / 2;
 
         for (let x = 0; x < w; x++) {
             const dx = Math.abs(x - centerX);
